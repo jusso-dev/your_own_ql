@@ -376,7 +376,7 @@ This repository is set up for npm publishing with:
 - `engines` and `packageManager` metadata for reproducible contributor installs.
 - `prepublishOnly` validation so publish attempts run the full check suite first.
 - `publishConfig.provenance = true` and a GitHub Actions publish workflow for npm provenance.
-- CI across Node 18, 20, and 22.
+- CI across Node 20.19, 22.14, and 24 for the development toolchain.
 - Dependency supply-chain hardening in `.npmrc`, including package release-age delay, disabled dependency lifecycle scripts, restricted Git dependencies, exact saves, strict peer dependency resolution, and audit defaults.
 - Lockfile host, HTTPS, package name, and integrity checks through `npm run security:lockfile`.
 - A dedicated dependency-safety workflow that runs a clean install, lockfile linting, and npm audit.
