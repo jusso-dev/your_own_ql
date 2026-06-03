@@ -6,6 +6,13 @@ export const CUSTOM_QUERY_VISUALIZATIONS = [
   "line",
 ] as const;
 
+export const CUSTOM_QUERY_REPORT_TYPES = [
+  "summary",
+  "grouped",
+  "trend",
+  "grouped_trend",
+] as const;
+
 export const MAX_CUSTOM_QUERY_RANGE_DAYS = 366;
 export const DEFAULT_CUSTOM_QUERY_LIMIT = 25;
 export const MAX_CUSTOM_QUERY_LIMIT = 50;
@@ -13,6 +20,7 @@ export const DEFAULT_PIE_GROUP_WARNING_THRESHOLD = 8;
 
 export type CustomQueryVisualization =
   (typeof CUSTOM_QUERY_VISUALIZATIONS)[number];
+export type CustomQueryReportType = (typeof CUSTOM_QUERY_REPORT_TYPES)[number];
 
 export type CustomQueryOperation = "count" | "sum";
 
@@ -57,6 +65,7 @@ export interface CustomQueryResult {
   metric?: string;
   groupBy?: string;
   trendBy?: string;
+  reportType?: CustomQueryReportType;
   visualization?: CustomQueryVisualization;
   value?: number;
   rows?: CustomQueryResultRow[];

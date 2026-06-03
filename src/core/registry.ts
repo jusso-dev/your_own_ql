@@ -95,7 +95,11 @@ export function getCustomQueryAutocompleteData(
     "and",
     "where",
     "group by",
+    "group_by",
     "trend by",
+    "trend_by",
+    "trending by",
+    "trending_by",
     "limit",
     "chart",
   ].map((label) => ({

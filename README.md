@@ -7,6 +7,7 @@ Safe custom query language primitives for Next.js apps that need tenant-scoped r
 - A tiny anchored QL parser for `count` and `sum`.
 - Source and field allowlists that drive validation and autocomplete.
 - An in-memory evaluator over normalized rows.
+- Grouped and trend reports using `group by`/`group_by` and `trend by`/`trend_by` clauses.
 - Date range and result limit guardrails.
 - Next.js route-handler helpers for preview, saved queries, and dashboard widgets.
 - Optional React components with CodeMirror editing and table, number, bar, pie, and line chart rendering.
@@ -192,7 +193,7 @@ const results = await customQueryEngine.evaluate({
   context: { userId: user.id, effectiveOrgId: user.orgId },
   queries: [
     "count from incidents group by severity chart bar",
-    "sum litres from fuel_transactions group by fuelType trend by transactionDay chart line",
+    "sum litres from fuel_transactions group_by fuelType trend_by transactionDay chart line",
   ],
   options: {
     range: { start: "2026-05-03", end: "2026-06-02" },
@@ -201,6 +202,71 @@ const results = await customQueryEngine.evaluate({
 ```
 
 Invalid lines return `{ ok: false, error }` DTOs. Valid lines fetch only their referenced allowlisted sources.
+
+## Grouped And Trending Reports
+
+Grouped reports aggregate by one allowlisted field. Use either `group by` or `group_by`; both forms produce the same AST and result shape.
+
+```text
+count from incidents group_by severity chart bar
+sum litres from fuel_transactions group by fuelType chart pie
+```
+
+A grouped result returns `reportType: "grouped"`, a total `value`, and sorted `rows`. `limit` caps the number of groups returned, bounded by the engine's `maxLimit`.
+
+```json
+{
+  "ok": true,
+  "reportType": "grouped",
+  "groupBy": "severity",
+  "visualization": "bar",
+  "value": 3,
+  "rows": [
+    { "label": "HIGH", "value": 2 },
+    { "label": "LOW", "value": 1 }
+  ]
+}
+```
+
+Trending reports aggregate over a date bucket field from the source `dateFields`. Use `trend by`, `trend_by`, `trending by`, or `trending_by`; all aliases are equivalent. Trend queries default to `chart line` when no visualization is specified.
+
+```text
+count from incidents between 2026-06-01 and 2026-06-03 trend_by recordedDay chart line
+sum litres from fuel_transactions trending_by transactionMonth chart line
+```
+
+When a date range is supplied, day and month trend buckets are filled with zero-value rows for missing periods. That keeps line charts stable even when no records exist for a bucket.
+
+```json
+{
+  "ok": true,
+  "reportType": "trend",
+  "trendBy": "recordedDay",
+  "visualization": "line",
+  "value": 2,
+  "rows": [
+    { "label": "2026-06-01", "value": 1 },
+    { "label": "2026-06-02", "value": 0 },
+    { "label": "2026-06-03", "value": 1 }
+  ],
+  "series": [
+    {
+      "label": "count",
+      "rows": [
+        { "label": "2026-06-01", "value": 1 },
+        { "label": "2026-06-02", "value": 0 },
+        { "label": "2026-06-03", "value": 1 }
+      ]
+    }
+  ]
+}
+```
+
+Grouped trend reports combine both clauses. The result returns `reportType: "grouped_trend"`, overall bucket totals in `rows`, and one `series` entry per top group.
+
+```text
+sum litres from fuel_transactions group_by fuelType trend_by transactionDay limit 10 chart line
+```
 
 ## Next.js Route Handlers
 
@@ -345,7 +411,11 @@ sum <numericField> from <source>
 [between YYYY-MM-DD and YYYY-MM-DD]
 [where <field> = <value>]
 [group by <field>]
+[group_by <field>]
 [trend by <dateBucketField>]
+[trend_by <dateBucketField>]
+[trending by <dateBucketField>]
+[trending_by <dateBucketField>]
 [limit N]
 [chart number|table|bar|pie|line]
 ```
@@ -354,9 +424,14 @@ Examples:
 
 ```text
 count from incidents group by severity chart bar
+count from incidents group_by severity chart bar
 sum litres from fuel_transactions group by fuelType chart pie
+count from incidents trend_by recordedDay chart line
 sum litres from fuel_transactions between 2026-05-03 and 2026-06-02 group by fuelType trend by transactionDay chart line
 ```
+
+Trend reports return `reportType: "trend"` or `reportType: "grouped_trend"`.
+When a date range is supplied, day and month trend buckets are filled with zero-value rows for missing buckets.
 
 ## Validation
 

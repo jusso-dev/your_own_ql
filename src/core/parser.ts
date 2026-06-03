@@ -15,8 +15,23 @@ import {
   resolveSourceName,
 } from "./registry";
 
-export const CUSTOM_QUERY_RE =
-  /^(count|sum\s+([A-Za-z][A-Za-z0-9_]*))\s+from\s+([a-z_]+)(?:\s+between\s+(\d{4}-\d{2}-\d{2})\s+and\s+(\d{4}-\d{2}-\d{2}))?(?:\s+where\s+([A-Za-z][A-Za-z0-9_]*)\s*=\s*("[^"]+"|'[^']+'|[^\s]+))?(?:\s+group\s+by\s+([A-Za-z][A-Za-z0-9_]*))?(?:\s+trend\s+by\s+([A-Za-z][A-Za-z0-9_]*))?(?:\s+limit\s+([0-9]{1,2}))?(?:\s+(?:as|chart)\s+(number|table|bar|pie|line))?$/i;
+const IDENTIFIER_PATTERN = "[A-Za-z][A-Za-z0-9_]*";
+const DATE_PATTERN = "\\d{4}-\\d{2}-\\d{2}";
+const WHERE_VALUE_PATTERN = `("[^"]+"|'[^']+'|[^\\s]+)`;
+
+export const CUSTOM_QUERY_RE = new RegExp(
+  [
+    `^(count|sum\\s+(${IDENTIFIER_PATTERN}))`,
+    `\\s+from\\s+(${IDENTIFIER_PATTERN})`,
+    `(?:\\s+between\\s+(${DATE_PATTERN})\\s+and\\s+(${DATE_PATTERN}))?`,
+    `(?:\\s+where\\s+(${IDENTIFIER_PATTERN})\\s*=\\s*${WHERE_VALUE_PATTERN})?`,
+    `(?:\\s+group(?:\\s+|_)by\\s+(${IDENTIFIER_PATTERN}))?`,
+    `(?:\\s+(?:trend|trending)(?:\\s+|_)by\\s+(${IDENTIFIER_PATTERN}))?`,
+    `(?:\\s+limit\\s+([0-9]{1,2}))?`,
+    `(?:\\s+(?:as|chart)\\s+(number|table|bar|pie|line))?$`,
+  ].join(""),
+  "i",
+);
 
 const FORBIDDEN_TEXT_RE = /(;|--|\/\*|\*\/)/;
 
@@ -76,7 +91,7 @@ export function parseCustomQuery(query: string): CustomQueryParseResult {
       ok: false,
       query: normalized,
       error:
-        "Unsupported query syntax. Use count or sum with allowlisted from, where, group by, trend by, limit, and chart clauses.",
+        "Unsupported query syntax. Use count or sum with allowlisted from, where, group by/group_by, trend by/trend_by, limit, and chart clauses.",
     };
   }
 

@@ -1,6 +1,8 @@
 import {
   combineRanges,
   isDateOnlyWithinRange,
+  formatDateOnly,
+  parseDateOnly,
   toDateOnly,
   validateCustomQueryRange,
 } from "./date";
@@ -14,9 +16,11 @@ import {
   type CustomQueryEvaluationQuery,
   type CustomQueryEvaluationQueryInput,
   type CustomQueryEvaluationOptions,
+  type CustomQueryRange,
   type CustomQueryResult,
   type CustomQueryResultRow,
   type CustomQueryResultSeries,
+  type CustomQueryReportType,
   type CustomQuerySourceDefinition,
   type CustomQuerySourceRegistry,
   type CustomQueryVisualization,
@@ -32,6 +36,27 @@ type ParsedLine = {
 };
 
 const DEFAULT_EMPTY_LABEL = "(blank)";
+const MONTH_BUCKET_RE = /^\d{4}-\d{2}$/;
+const DAY_BUCKET_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type TrendBucketGranularity = "day" | "month";
+
+function inferReportType(ast: CustomQueryAst): CustomQueryReportType {
+  if (ast.groupBy && ast.trendBy) {
+    return "grouped_trend";
+  }
+
+  if (ast.trendBy) {
+    return "trend";
+  }
+
+  if (ast.groupBy) {
+    return "grouped";
+  }
+
+  return "summary";
+}
 
 function inferVisualization(ast: CustomQueryAst): CustomQueryVisualization {
   if (ast.visualization) {
@@ -238,11 +263,79 @@ function mapToRows(map: Map<string, number>): CustomQueryResultRow[] {
   return [...map.entries()].map(([label, value]) => ({ label, value }));
 }
 
+function inferTrendBucketGranularity(
+  trendField: string,
+  observedLabels: readonly string[],
+): TrendBucketGranularity | null {
+  const normalizedField = trendField.toLowerCase();
+
+  if (normalizedField.endsWith("month")) {
+    return "month";
+  }
+
+  if (normalizedField.endsWith("day") || normalizedField.endsWith("date")) {
+    return "day";
+  }
+
+  if (observedLabels.some((label) => MONTH_BUCKET_RE.test(label))) {
+    return "month";
+  }
+
+  if (observedLabels.some((label) => DAY_BUCKET_RE.test(label))) {
+    return "day";
+  }
+
+  return null;
+}
+
+function buildRangeTrendLabels(
+  trendField: string,
+  range: CustomQueryRange | undefined,
+  observedLabels: readonly string[],
+): string[] {
+  if (!range) {
+    return [...observedLabels].sort((a, b) => a.localeCompare(b));
+  }
+
+  const start = parseDateOnly(range.start);
+  const end = parseDateOnly(range.end);
+  const granularity = inferTrendBucketGranularity(trendField, observedLabels);
+
+  if (!start || !end || !granularity) {
+    return [...observedLabels].sort((a, b) => a.localeCompare(b));
+  }
+
+  const labels = new Set<string>();
+
+  if (granularity === "month") {
+    const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+    const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+
+    while (cursor.getTime() <= last.getTime()) {
+      labels.add(formatDateOnly(cursor).slice(0, 7));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  } else {
+    const cursor = new Date(start);
+
+    while (cursor.getTime() <= end.getTime()) {
+      labels.add(formatDateOnly(cursor));
+      cursor.setTime(cursor.getTime() + DAY_MS);
+    }
+  }
+
+  for (const label of observedLabels) {
+    labels.add(label);
+  }
+
+  return [...labels].sort((a, b) => a.localeCompare(b));
+}
+
 function evaluateTrendQuery(
   ast: CustomQueryAst,
   rows: readonly NormalizedCustomQueryRow[],
   limit: number,
-  options: Required<EvaluatorOptionDefaults>,
+  options: Required<EvaluatorOptionDefaults> & Pick<CustomQueryEvaluationOptions, "range">,
 ): Pick<CustomQueryResult, "rows" | "series" | "value"> {
   const trendField = ast.trendBy!;
   const totalsByTrend = new Map<string, number>();
@@ -266,7 +359,11 @@ function evaluateTrendQuery(
     }
   }
 
-  const sortedTrendLabels = [...trendLabels].sort((a, b) => a.localeCompare(b));
+  const sortedTrendLabels = buildRangeTrendLabels(
+    trendField,
+    ast.between ?? options.range,
+    [...trendLabels],
+  );
   const rowsByTrend = sortedTrendLabels.map((label) => ({
     label,
     value: totalsByTrend.get(label) ?? 0,
@@ -325,6 +422,7 @@ function evaluateOneAst(
       metric: ast.metric,
       groupBy: ast.groupBy,
       trendBy: ast.trendBy,
+      reportType: inferReportType(ast),
       visualization,
     };
 
@@ -384,6 +482,7 @@ function evaluateOneAst(
       metric: ast.metric,
       groupBy: ast.groupBy,
       trendBy: ast.trendBy,
+      reportType: inferReportType(ast),
       visualization: inferVisualization(ast),
       error: error instanceof Error ? error.message : "Query evaluation failed.",
     };

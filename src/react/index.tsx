@@ -118,7 +118,7 @@ const qlLanguage = StreamLanguage.define({
 
     if (
       stream.match(
-        /\b(count|sum|from|between|and|where|group|by|trend|limit|chart|as)\b/i,
+        /\b(count|sum|from|between|and|where|group|group_by|by|trend|trend_by|trending|trending_by|limit|chart|as)\b/i,
       )
     ) {
       return "keyword";

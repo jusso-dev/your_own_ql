@@ -61,6 +61,44 @@ describe("parser and allowlist validation", () => {
     });
   });
 
+  it("supports group_by and trending aliases", () => {
+    const grouped = parseAndValidateCustomQuery(
+      "count from incidents group_by severity chart bar",
+      registry,
+    );
+    const trending = parseAndValidateCustomQuery(
+      "sum litres from fuel_transactions group_by fuelType trending_by transactionDay chart line",
+      registry,
+    );
+    const spacedTrending = parseAndValidateCustomQuery(
+      "count from incidents trending by recordedDay chart line",
+      registry,
+    );
+
+    expect(grouped).toEqual({
+      ok: true,
+      ast: expect.objectContaining({
+        groupBy: "severity",
+        visualization: "bar",
+      }),
+    });
+    expect(trending).toEqual({
+      ok: true,
+      ast: expect.objectContaining({
+        groupBy: "fuelType",
+        trendBy: "transactionDay",
+        visualization: "line",
+      }),
+    });
+    expect(spacedTrending).toEqual({
+      ok: true,
+      ast: expect.objectContaining({
+        trendBy: "recordedDay",
+        visualization: "line",
+      }),
+    });
+  });
+
   it("rejects unknown sources and unknown fields", () => {
     expect(parseAndValidateCustomQuery("count from secrets", registry)).toEqual(
       expect.objectContaining({ ok: false, error: expect.stringContaining("Unknown query source") }),
@@ -122,6 +160,7 @@ describe("evaluator", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: true,
+        reportType: "grouped",
         visualization: "bar",
         rows: [
           { label: "HIGH", value: 2 },
@@ -166,6 +205,7 @@ describe("evaluator", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: true,
+        reportType: "grouped_trend",
         trendBy: "transactionDay",
         groupBy: "fuelType",
         rows: [
@@ -185,6 +225,42 @@ describe("evaluator", () => {
             rows: [
               { label: "2026-06-01", value: 0 },
               { label: "2026-06-02", value: 45 },
+            ],
+          },
+        ],
+      }),
+    );
+  });
+
+  it("fills ranged trend buckets with zero values", async () => {
+    const [result] = await evaluateCustomQueries({
+      queries:
+        "count from incidents between 2026-06-01 and 2026-06-03 trend_by recordedDay chart line",
+      registry,
+      rowsBySource: {
+        incidents: [
+          { severity: "HIGH", recordedDay: "2026-06-01" },
+          { severity: "LOW", recordedDay: "2026-06-03" },
+        ],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        reportType: "trend",
+        rows: [
+          { label: "2026-06-01", value: 1 },
+          { label: "2026-06-02", value: 0 },
+          { label: "2026-06-03", value: 1 },
+        ],
+        series: [
+          {
+            label: "count",
+            rows: [
+              { label: "2026-06-01", value: 1 },
+              { label: "2026-06-02", value: 0 },
+              { label: "2026-06-03", value: 1 },
             ],
           },
         ],
