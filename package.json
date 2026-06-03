@@ -1,0 +1,117 @@
+{
+  "name": "your-own-ql",
+  "version": "0.1.0",
+  "description": "Safe custom query language primitives, Next.js route helpers, and React reporting widgets.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "nextjs",
+    "prisma",
+    "postgresql",
+    "query-language",
+    "reporting",
+    "analytics",
+    "dashboard",
+    "tenant-isolation",
+    "rbac",
+    "typescript"
+  ],
+  "homepage": "https://github.com/jusso-dev/your_own_ql#readme",
+  "bugs": {
+    "url": "https://github.com/jusso-dev/your_own_ql/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jusso-dev/your_own_ql.git"
+  },
+  "type": "module",
+  "packageManager": "npm@10.9.8",
+  "engines": {
+    "node": ">=18.17",
+    "npm": ">=10"
+  },
+  "sideEffects": [
+    "style.css"
+  ],
+  "files": [
+    "dist",
+    "style.css",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js",
+      "require": "./dist/next.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    },
+    "./style.css": "./style.css"
+  },
+  "scripts": {
+    "build": "tsup && node scripts/ensure-client-directive.mjs",
+    "audit:security": "npm audit --audit-level=high",
+    "lint": "eslint . --max-warnings=0",
+    "pack:dry-run": "npm pack --dry-run --ignore-scripts=false",
+    "security:check": "node -e \"console.log('Review dependency diffs; avoid broad update commands; keep lockfiles committed; approve lifecycle-script exceptions explicitly.')\"",
+    "security:install": "npm ci",
+    "security:lockfile": "lockfile-lint --path package-lock.json --allowed-hosts npm --validate-https --validate-package-names --validate-integrity",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit --pretty false",
+    "validate": "git diff --check && npm run typecheck && npm run lint && npm test && npm run audit:security && npm run security:lockfile && npm run build && npm run pack:dry-run",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run validate"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "next": ">=14",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "6.20.2",
+    "@codemirror/language": "6.12.3",
+    "@codemirror/state": "6.6.0",
+    "@codemirror/view": "6.43.0",
+    "@lezer/highlight": "1.2.3",
+    "@uiw/react-codemirror": "4.25.10",
+    "lucide-react": "0.468.0",
+    "recharts": "3.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.4",
+    "lockfile-lint": "5.0.0",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.60.1",
+    "vitest": "4.1.8"
+  }
+}
