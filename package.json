@@ -1,6 +1,6 @@
 {
   "name": "your-own-ql",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Safe custom query language primitives, Next.js route helpers, and React reporting widgets.",
   "license": "Apache-2.0",
   "keywords": [
